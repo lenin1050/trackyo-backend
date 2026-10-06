@@ -736,15 +736,16 @@ async function startServer() {
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: Number(process.env.MONGO_TIMEOUT_MS || 5000) });
     databaseMode = 'mongodb';
     console.log(`MongoDB connected at ${mongoose.connection.name}.`);
-  } catch (error) {
-    if (isProduction) {
-      throw new Error(
-        'MongoDB Atlas connection failed; verify MONGODB_URI and Atlas network access.',
-      );
-    }
-    databaseMode = 'memory-fallback';
-    console.error(`MongoDB unavailable (${error.message}); starting with temporary in-memory fallback.`);
+  } } catch (error) {
+  console.error('MongoDB REAL ERROR:', error.message);
+
+  if (isProduction) {
+    throw error;
   }
+
+  databaseMode = 'memory-fallback';
+  console.error(`MongoDB unavailable (${error.message}); starting with memory fallback`);
+}
   mongoose.connection.on('disconnected', () => {
     databaseMode = 'unavailable';
     console.error('MongoDB disconnected after startup; API writes are paused until persistent storage is restored.');
