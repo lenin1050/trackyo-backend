@@ -756,6 +756,9 @@ async function startServer() {
     databaseMode = 'mongodb';
     console.log('MongoDB connection restored.');
   });
+  app.get("/", (req, res) => {
+  res.send("TrackYo Backend is Running!");
+});
   app.listen(port, '0.0.0.0', () =>
     console.log(`TrackYo backend running on http://0.0.0.0:${port}`),
   );
