@@ -736,15 +736,17 @@ async function startServer() {
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: Number(process.env.MONGO_TIMEOUT_MS || 5000) });
     databaseMode = 'mongodb';
     console.log(`MongoDB connected at ${mongoose.connection.name}.`);
-  } } catch (error) {
-  console.error('MongoDB REAL ERROR:', error.message);
+  } catch (error) {
+  console.error("MongoDB REAL ERROR:", error.message);
 
   if (isProduction) {
     throw error;
   }
 
-  databaseMode = 'memory-fallback';
-  console.error(`MongoDB unavailable (${error.message}); starting with memory fallback`);
+  databaseMode = "memory-fallback";
+  console.error(
+    `MongoDB unavailable (${error.message}); starting with memory fallback`
+  );
 }
   mongoose.connection.on('disconnected', () => {
     databaseMode = 'unavailable';
