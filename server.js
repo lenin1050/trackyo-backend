@@ -29,6 +29,8 @@ const {
   serializeTransactionDate,
 } = require('./services/transactionDate');
 const { calculateBudgetUsage } = require('./services/budgetMath');
+const { classifyTransaction: classifyTransactionWithAi } =
+  require('./services/transactionAiClassifier');
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
@@ -728,6 +730,46 @@ app.post('/api/ai/chat', authenticate, asyncRoute(async (req, res) => {
     answer: answerFinancialQuestion(message, items, budgets),
     generatedBy: 'rules',
   });
+}));
+
+app.post('/api/ai/classify-transaction', authenticate, asyncRoute(async (req, res) => {
+  const source = req.body?.source;
+  const text = req.body?.text;
+  if (!['sms', 'receipt'].includes(source)) {
+    return res.status(400).json({ message: 'Source must be sms or receipt' });
+  }
+  if (typeof text !== 'string' || !text.trim() || text.length > 10000) {
+    return res.status(400).json({
+      message: 'Transaction text must contain 1-10000 characters',
+    });
+  }
+  console.info('[ai-classification] Request received', {
+    source,
+    providerConfigured: Boolean(process.env.AI_API_KEY?.trim()),
+  });
+  const [categories, incomeSources] = mongoAvailable()
+    ? await Promise.all([
+        Category.find({ userId: req.userId }).select('name'),
+        IncomeSource.find({ userId: req.userId }).select('name'),
+      ])
+    : [
+        memory.categories.filter((item) => item.userId === req.userId),
+        memory.incomeSources.filter((item) => item.userId === req.userId),
+      ];
+  const result = await classifyTransactionWithAi({
+    text,
+    source,
+    categories,
+    incomeSources,
+  });
+  console.info('[ai-classification] Request completed', {
+    source,
+    available: result.available,
+    generatedBy: result.generatedBy,
+    reviewRequired: result.reviewRequired,
+    outcome: result.message || 'classification_returned',
+  });
+  return res.json(result);
 }));
 
 app.use((error, req, res, next) => {

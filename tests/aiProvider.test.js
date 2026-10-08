@@ -62,3 +62,23 @@ test('AI provider rejects insecure non-local endpoints', async () => {
     /must use HTTPS/,
   );
 });
+
+test('AI provider exposes the HTTP status without including provider response data', async () => {
+  await assert.rejects(
+    completeWithAi({
+      systemPrompt: 'system',
+      userPrompt: 'user',
+      env: { AI_API_KEY: 'test-secret' },
+      fetchImpl: async () => ({
+        ok: false,
+        status: 429,
+        text: async () => 'response body must not be logged',
+      }),
+    }),
+    (error) => {
+      assert.equal(error.statusCode, 429);
+      assert.doesNotMatch(error.message, /test-secret|response body/);
+      return true;
+    },
+  );
+});

@@ -41,7 +41,9 @@ async function completeWithAi({
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error(`AI provider returned HTTP ${response.status}`);
+      const error = new Error(`AI provider returned HTTP ${response.status}`);
+      error.statusCode = response.status;
+      throw error;
     }
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;

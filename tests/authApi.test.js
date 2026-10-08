@@ -267,3 +267,46 @@ test('transactions and budgets are isolated by authenticated user', async () => 
   );
   assert.equal(foreignDelete.status, 404);
 });
+
+test('transaction classification endpoint is authenticated and falls back without AI config', async () => {
+  const originalApiKey = process.env.AI_API_KEY;
+  delete process.env.AI_API_KEY;
+  try {
+    const unauthorized = await request('/api/ai/classify-transaction', {
+      method: 'POST',
+      body: { source: 'sms', text: 'Rs.450 spent at Swiggy using UPI' },
+    });
+    assert.equal(unauthorized.status, 401);
+
+    const registration = await request('/api/auth/register', {
+      method: 'POST',
+      body: {
+        fullName: 'AI Classifier Test',
+        email: `ai-classifier-${Date.now()}@example.com`,
+        password: 'correct-horse-ai-classifier',
+        confirmPassword: 'correct-horse-ai-classifier',
+      },
+    });
+    assert.equal(registration.status, 201);
+
+    const fallback = await request('/api/ai/classify-transaction', {
+      method: 'POST',
+      token: registration.body.token,
+      body: { source: 'sms', text: 'Rs.450 spent at Swiggy using UPI' },
+    });
+    assert.equal(fallback.status, 200);
+    assert.equal(fallback.body.available, false);
+    assert.equal(fallback.body.reviewRequired, false);
+    assert.match(fallback.body.message, /existing parser results were retained/);
+
+    const invalidSource = await request('/api/ai/classify-transaction', {
+      method: 'POST',
+      token: registration.body.token,
+      body: { source: 'manual', text: 'some text' },
+    });
+    assert.equal(invalidSource.status, 400);
+  } finally {
+    if (originalApiKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = originalApiKey;
+  }
+});
