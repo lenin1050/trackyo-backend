@@ -1,4 +1,5 @@
-const DEFAULT_API_URL = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
+const DEFAULT_MODEL = 'openrouter/free';
 
 async function completeWithAi({
   systemPrompt,
@@ -12,11 +13,14 @@ async function completeWithAi({
     throw new Error('The configured AI provider requires a Fetch API implementation');
   }
 
-  const endpoint = env.AI_API_URL?.trim() || DEFAULT_API_URL;
-  const endpointUrl = new URL(endpoint);
+  const baseUrl = (env.AI_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(/\/+$/, '');
+  const endpointUrl = new URL(`${baseUrl}/chat/completions`);
+  if (endpointUrl.pathname.endsWith('/chat/completions/chat/completions')) {
+    throw new Error('AI_BASE_URL must be the API base URL, not a completion endpoint');
+  }
   if (endpointUrl.protocol !== 'https:' &&
       !(endpointUrl.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(endpointUrl.hostname))) {
-    throw new Error('AI_API_URL must use HTTPS, except for a localhost provider');
+    throw new Error('AI_BASE_URL must use HTTPS, except for a localhost provider');
   }
 
   const controller = new AbortController();
@@ -28,9 +32,11 @@ async function completeWithAi({
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://trackyo-frontend.onrender.com',
+        'X-Title': 'TrackYo',
       },
       body: JSON.stringify({
-        model: env.AI_MODEL?.trim() || 'gpt-4o-mini',
+        model: env.AI_MODEL?.trim() || DEFAULT_MODEL,
         temperature: 0.2,
         max_tokens: 700,
         messages: [
@@ -56,4 +62,4 @@ async function completeWithAi({
   }
 }
 
-module.exports = { completeWithAi };
+module.exports = { completeWithAi, DEFAULT_BASE_URL, DEFAULT_MODEL };
